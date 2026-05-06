@@ -141,9 +141,9 @@ Based on the analysis, the following actions are recommended for Xoxoday's socia
 
 ## 👥 Authors
 
-| Name | Role |
-|------|------|
-| Preethi Vudugula | Report Writing & Interpretation |
+| Name | 
+|------|
+| Preethi Vudugula |
 
 **Course:** BANL6900 Business Analytics Capstone  
 **Institution:** University of New Haven  
