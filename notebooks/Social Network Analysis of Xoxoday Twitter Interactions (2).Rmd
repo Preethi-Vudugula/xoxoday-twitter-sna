@@ -1,0 +1,220 @@
+---
+title: "Social Network Analysis of Xoxoday Twitter Interactions"
+author: "Akhila Thakur, Madhurima Dilari, Shiva Shankar Gundla, Preethi Vudugula, Nandini Kovuru
+"
+date: "2025-12-05"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+This report conducts Social Network Analysis (SNA) on Xoxoday’s Twitter interactions using  
+**each sheet of the original Excel file separately**, without combining them.
+
+We analyze:
+
+1. **Mentions & Replies Network** (Tweets Data sheet)  
+2. **Retweets Network** (Retweets Data sheet)
+
+For each network, we:
+
+- Build a directed graph  
+- Compute centrality metrics  
+- Detect communities (Louvain)  
+- Visualize the network  
+- Identify top influencers  
+
+This method avoids merging datasets and keeps each network true to its original meaning.
+
+# Load Required Libraries
+
+```{r}
+# Install missing packages automatically
+#packages <- c("tidyverse", "igraph", "tidygraph", "ggraph")
+#install.packages(setdiff(packages, installed.packages()[,1]))
+
+library(readxl)
+library(dplyr)
+library(janitor)
+library(igraph)
+library(ggraph)
+library(tidygraph)
+library(ggplot2)
+library(tidyr)
+```
+
+#Import Original Excel File
+```{r}
+file_path <- "C:\\Users\\bills\\Downloads\\W19310-XLS-ENG (1).xlsx"
+
+tweets_raw     <- read_excel(file_path, sheet = "Tweets Data", skip = 1)
+retweets_raw   <- read_excel(file_path, sheet = "Retweets Data ", skip = 1)
+users_raw      <- read_excel(file_path, sheet = "Twitter User Data", skip = 1)
+
+```
+
+
+#CLEAN TWEETS DATA (Mentions + Replies Network)
+```{r}
+tweets <- tweets_raw %>%
+  clean_names() %>%
+  select(
+    source = vertex_1,
+    target = vertex_2,
+    relationship,
+    tweet,
+    tweet_date_utc
+  ) %>%
+  filter(!is.na(source), !is.na(target))
+
+
+tweets <- tweets %>% mutate(
+  interaction_type = case_when(
+    relationship == "Mentions" ~ "Mention",
+    relationship == "Replies to" ~ "Reply",
+    TRUE ~ "Other"
+  ),
+  weight = 1
+)
+
+
+```
+
+
+
+#CLEAN RETWEETS DATA (Pure Retweet Network)
+```{r}
+retweets <- retweets_raw %>%
+  clean_names() %>%
+  select(
+    source = vertex_1,
+    target = vertex_2,
+    weight = edge_weight
+  ) %>%
+  mutate(interaction_type = "Retweet") %>%
+  filter(!is.na(source), !is.na(target))
+
+
+```
+
+
+
+#SEPARATE NODE LISTS FOR EACH NETWORK
+```{r}
+
+nodes_tweets <- tweets %>%
+  select(source, target) %>%
+  pivot_longer(everything(), values_to = "node") %>%
+  distinct(node) %>%
+  mutate(node_id = row_number())
+
+nodes_retweets <- retweets %>%
+  select(source, target) %>%
+  pivot_longer(everything(), values_to = "node") %>%
+  distinct(node) %>%
+  mutate(node_id = row_number())
+
+```
+
+
+
+#BUILD GRAPHS (Separately)
+```{r}
+g_tweets   <- graph_from_data_frame(tweets, directed = TRUE, vertices = nodes_tweets)
+g_retweets <- graph_from_data_frame(retweets, directed = TRUE, vertices = nodes_retweets)
+
+
+```
+
+
+
+#CENTRALITY METRICS FOR EACH NETWORK
+```{r}
+nodes_tweets$indegree     <- degree(g_tweets, mode = "in")
+nodes_tweets$outdegree    <- degree(g_tweets, mode = "out")
+nodes_tweets$betweenness  <- betweenness(g_tweets, normalized = TRUE)
+nodes_tweets$pagerank     <- page_rank(g_tweets)$vector
+
+
+
+nodes_retweets$indegree     <- degree(g_retweets, mode = "in")
+nodes_retweets$outdegree    <- degree(g_retweets, mode = "out")
+nodes_retweets$betweenness  <- betweenness(g_retweets, normalized = TRUE)
+nodes_retweets$pagerank     <- page_rank(g_retweets)$vector
+
+
+```
+
+
+
+
+#COMMUNITY DETECTION
+```{r}
+comm_tw <- cluster_louvain(as_undirected(g_tweets))
+nodes_tweets$community <- membership(comm_tw)
+
+
+comm_rt <- cluster_louvain(as_undirected(g_retweets))
+nodes_retweets$community <- membership(comm_rt)
+
+```
+
+
+
+#VISUALIZATION — Tweets Network
+```{r}
+tg_tw <- tbl_graph(nodes = nodes_tweets, edges = tweets, directed = TRUE)
+
+ggraph(tg_tw, layout = "fr") +
+  geom_edge_link(alpha = 0.15) +
+  geom_node_point(aes(size = indegree, color = as.factor(community))) +
+  theme_void() +
+  labs(title = "Mentions & Replies Network (Tweets Data)")
+
+```
+The Mentions & Replies network graph is a force directed layout, which depicts the interactions between users in terms of mentions and replies. The thick clusters and intersections indicate the way in which the discussions converge around several nodes. The most saturated and dark cluster is the one whose center is the account thexoxoday, and which involves the number of inbound edges forming a dense center of activity. The rest of the nodes in the surrounding extend out of this central node, uncovering a pattern of communication which heavily favors the brand account. The network is typical of a hub-and-spoke design, in which most users are in direct contact with the center, and not with one another. This implies a lack of peer-to-peer interaction and means that though Xoxoday is very prominent, the community does not portray a wide range of conversations.
+
+
+
+#VISUALIZATION — Retweet Network
+```{r}
+tg_rt <- tbl_graph(nodes = nodes_retweets, edges = retweets, directed = TRUE)
+
+ggraph(tg_rt, layout = "fr") +
+  geom_edge_link(alpha = 0.15) +
+  geom_node_point(aes(size = indegree, color = as.factor(community))) +
+  theme_void() +
+  labs(title = "Retweet Network (Retweets Data)")
+
+```
+The Retweet Network graph also uses a force-directed layout but ends up giving it very different pattern compared to the mentions network. The retweet network is composed of numerous small, disjointed star-shaped subgraphs of individual original tweets, as opposed to two large clusters. The biggest starburst at the center is one tweet that had an unusual retweet rate and there are several retweets that then spread out in one layer. The other clusters are quite smaller in size and are mostly detached. The colored communities are groups that come up naturally as a result of Louvain community detection, but the groups are isolated events of diffusion as opposed to networked patterns of retweets. The architecture shows that the activity of retweeting is not widespread on the network, but instead event-focused.
+
+
+
+#TOP INFLUENCERS (Separate Lists)
+```{r}
+nodes_tweets %>%
+  arrange(desc(indegree)) %>%
+  slice(1:10)
+
+
+nodes_retweets %>%
+  arrange(desc(indegree)) %>%
+  slice(1:10)
+
+```
+
+
+#EXPORT RESULTS
+```{r}
+write.csv(nodes_tweets, "Tweets_Network_Nodes.csv", row.names = FALSE)
+write.csv(nodes_retweets, "Retweet_Network_Nodes.csv", row.names = FALSE)
+write.csv(tweets, "Tweets_Edges_Clean.csv", row.names = FALSE)
+write.csv(retweets, "Retweet_Edges_Clean.csv", row.names = FALSE)
+
+```
+
