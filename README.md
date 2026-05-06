@@ -143,10 +143,6 @@ Based on the analysis, the following actions are recommended for Xoxoday's socia
 
 | Name | Role |
 |------|------|
-| Nandini Kovuru | Network Analysis & Visualization |
-| Akhila Thakur | Data Collection & Cleaning |
-| Madhurima Dilari | Temporal & Community Analysis |
-| Shiva Shankar Gundla | Power BI Dashboard |
 | Preethi Vudugula | Report Writing & Interpretation |
 
 **Course:** BANL6900 Business Analytics Capstone  
