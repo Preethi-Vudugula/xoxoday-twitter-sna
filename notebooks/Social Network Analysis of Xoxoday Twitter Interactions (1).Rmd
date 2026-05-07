@@ -1,6 +1,6 @@
 ---
 title: "Social Network Analysis of Xoxoday Twitter Interactions"
-author: "Akhila Thakur, Madhurima Dilari, Shiva Shankar Gundla, Preethi Vudugula, Nandini Kovuru
+author: "Preethi Vudugula"
 "
 date: "2025-12-05"
 output: word_document
